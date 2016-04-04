@@ -1,0 +1,108 @@
+---
+title: "ReproducibleResearch"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+This is the course project for Reproducible Research. Below are the tasks and the code, which implements them.
+
+## Loading and preprocessing the data
+Read the data
+```{r}
+actData <- read.csv("activity.csv")
+```
+
+## What is median, mean and total number of steps taken per day?
+Aggregate total number of steps per day and plot the corresponding histogram
+```{r}
+totalStepsPerDay <- aggregate(actData$steps, by = list(actData$date), FUN = sum)
+names(totalStepsPerDay) <- c("date","totalSteps")
+hist(totalStepsPerDay$totalSteps, xlab = "Total number of steps daily")
+```
+
+Calculate the mean and the median per day
+```{r}
+meanStepsPerDay <-aggregate(actData$steps, by = list(actData$date), FUN = mean, na.rm=TRUE)
+names(meanStepsPerDay) <- c("date", "steps")
+medianStepsPerDay <- aggregate(actData$steps, by = list(actData$date), FUN = median, na.rm=TRUE)
+names(medianStepsPerDay) <- c("date","steps")
+```
+
+## What is the average daily activity pattern and the interval with the most steps?
+Calculate the average daily activity pattern. Average the number of steps per interval
+```{r}
+intervalMeans <- aggregate(actData$steps, by = list(actData$interval), mean, na.rm = TRUE)
+names(intervalMeans) <- c("interval","meanSteps")
+library(lattice)
+xyplot(data=intervalMeans, meanSteps ~ interval, type="l")
+```
+
+This is the 5-min interval, which has the most steps on average
+```{r}
+intervalMeans[intervalMeans$steps == max(intervalMeans$steps),]
+```
+
+## Imputing missing values
+Calculate  total number of missing values in the dataset
+```{r}
+length(which(is.na(actData)))
+```
+
+and impute the missing values belonging to a specific interval with the mean of this interval
+```{r}
+actData$interval <- as.factor(actData$interval)
+
+for (i in 1:nrow(actData)) {
+  if (is.na(actData[i,"steps"])) {
+    actData[i,"steps"] <- round(intervalMeans[intervalMeans$interval == actData[i,"interval"], "meanSteps"])
+  }
+}
+
+totalStepsPerDay2 <- aggregate(actData$steps, by = list(actData$date), FUN = sum)
+names(totalStepsPerDay2) <- c("date","totalSteps")
+hist(totalStepsPerDay2$totalSteps)
+```
+## Are there differences in activity patterns between weekdays and weekends?
+Now, these are the new mean and medians- after the impulation
+``` {r}
+meanStepsPerDay2 <- aggregate(actData$steps, by = list(actData$date), FUN = mean)
+names(meanStepsPerDay2) <- c("date","steps")
+medianStepsPerDay2 <- aggregate(actData$steps, by = list(actData$date), FUN = median)
+names(medianStepsPerDay2) <- c("date","steps")
+```
+
+The replacement of the NAs has caused no changes in the values of the median and the mean.Exception are the days, which included only NA values
+``` {r}
+head(data.frame(meanStepsPerDay$date, meanStepsPerDay$steps,meanStepsPerDay2$steps))
+head(data.frame(medianStepsPerDay$date, medianStepsPerDay$steps,medianStepsPerDay2$steps))
+```
+## Find differences between weekends and weekdays
+In order to find activity patterns differences between weekdays and weekends:
+``` {r}
+weekdayFlag <- c()
+for (i in 1:nrow(actData)) {
+  day <- weekdays(as.POSIXct(actData[i,"date"]))
+  if (day == "Samstag" | day == "Sonntag") {
+    weekdayFlag <- append(weekdayFlag, "Weekend")
+  } else {
+    weekdayFlag <- append(weekdayFlag, "Weekday")
+  }
+}
+actData$weekdayFlag <- as.factor(weekdayFlag)
+
+meanStepsWeek <- aggregate(actData$steps, by = list(actData$interval,actData$weekdayFlag), FUN = mean)
+names(meanStepsWeek) <- c("interval","weekdayFlag","steps")
+
+par(mfcol=c(1,2))
+#plot(data=meanStepsWeek[meanStepsWeek$weekdayFlag=="Weekday",], steps ~ interval, type="l", ylim=c(400))
+#plot(data=meanStepsWeek[meanStepsWeek$weekdayFlag=="Weekend",], steps ~ interval, type="l", xaxt= "n" , ylim = c(400))
+plot(data=meanStepsWeek[meanStepsWeek$weekdayFlag=="Weekday",], steps ~ interval, type="l")
+plot(data=meanStepsWeek[meanStepsWeek$weekdayFlag=="Weekend",], steps ~ interval, type="l")
+``` 
+
+
+
